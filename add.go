@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -28,6 +29,8 @@ import (
 
 // AddAndCopyOptions holds options for add and copy commands.
 type AddAndCopyOptions struct {
+	//TODO: describe
+	Chmod string
 	// Chown is a spec for the user who should be given ownership over the
 	// newly-added content, potentially overriding permissions which would
 	// otherwise be set to 0:0.
@@ -250,6 +253,16 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 			return errors.Wrapf(err, "error looking up UID/GID for %q", options.Chown)
 		}
 	}
+	var chmodDirsFiles *os.FileMode
+	if options.Chmod != "" {
+		p, err := strconv.ParseUint(options.Chmod, 8, 32)
+		if err != nil {
+			return errors.Wrapf(err, "error parsing chmod %q", options.Chown)
+		}
+		perm := os.FileMode(p)
+		chmodDirsFiles = &perm
+	}
+
 	chownDirs = &idtools.IDPair{UID: int(user.UID), GID: int(user.GID)}
 	chownFiles = &idtools.IDPair{UID: int(user.UID), GID: int(user.GID)}
 	if options.Chown == "" && options.PreserveOwnership {
@@ -446,9 +459,9 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					Excludes:       options.Excludes,
 					ExpandArchives: extract,
 					ChownDirs:      chownDirs,
-					ChmodDirs:      nil,
+					ChmodDirs:      chmodDirsFiles,
 					ChownFiles:     chownFiles,
-					ChmodFiles:     nil,
+					ChmodFiles:     chmodDirsFiles,
 					StripSetuidBit: options.StripSetuidBit,
 					StripSetgidBit: options.StripSetgidBit,
 					StripStickyBit: options.StripStickyBit,

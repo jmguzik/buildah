@@ -138,6 +138,7 @@ func add(b *Builder, args []string, attributes map[string]bool, flagArgs []strin
 	if len(args) < 2 {
 		return errAtLeastOneArgument("ADD")
 	}
+	var chmod string
 	var chown string
 	last := len(args) - 1
 	dest := makeAbsolute(args[last], b.RunConfig.WorkingDir)
@@ -148,13 +149,15 @@ func add(b *Builder, args []string, attributes map[string]bool, flagArgs []strin
 			return err
 		}
 		switch {
+		case strings.HasPrefix(arg, "--chmod="):
+			chmod = strings.TrimPrefix(arg, "--chmod=")
 		case strings.HasPrefix(arg, "--chown="):
 			chown = strings.TrimPrefix(arg, "--chown=")
 		default:
-			return fmt.Errorf("ADD only supports the --chown=<uid:gid> flag")
+			return fmt.Errorf("ADD only supports the --chmod=<permissions> and the --chown=<uid:gid> flag")
 		}
 	}
-	b.PendingCopies = append(b.PendingCopies, Copy{Src: args[0:last], Dest: dest, Download: true, Chown: chown})
+	b.PendingCopies = append(b.PendingCopies, Copy{Src: args[0:last], Dest: dest, Download: true, Chown: chown, Chmod: chmod})
 	return nil
 }
 
@@ -168,6 +171,7 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, flagArg
 	}
 	last := len(args) - 1
 	dest := makeAbsolute(args[last], b.RunConfig.WorkingDir)
+	var chmod string
 	var chown string
 	var from string
 	userArgs := mergeEnv(envMapAsSlice(b.Args), b.Env)
@@ -177,15 +181,17 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, flagArg
 			return err
 		}
 		switch {
+		case strings.HasPrefix(arg, "--chmod="):
+			chmod = strings.TrimPrefix(arg, "--chmod=")
 		case strings.HasPrefix(arg, "--chown="):
 			chown = strings.TrimPrefix(arg, "--chown=")
 		case strings.HasPrefix(arg, "--from="):
 			from = strings.TrimPrefix(arg, "--from=")
 		default:
-			return fmt.Errorf("COPY only supports the --chown=<uid:gid> and the --from=<image|stage> flags")
+			return fmt.Errorf("COPY only supports the --chmod=<permissions> --chown=<uid:gid> and the --from=<image|stage> flags")
 		}
 	}
-	b.PendingCopies = append(b.PendingCopies, Copy{From: from, Src: args[0:last], Dest: dest, Download: false, Chown: chown})
+	b.PendingCopies = append(b.PendingCopies, Copy{From: from, Src: args[0:last], Dest: dest, Download: false, Chown: chown, Chmod: chmod})
 	return nil
 }
 
